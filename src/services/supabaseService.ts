@@ -24,9 +24,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Kimlik doğrulama işlevleri
+
 export const supabaseAuth = {
-  // Kullanıcı kaydı
+  
   signUp: async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -42,7 +42,7 @@ export const supabaseAuth = {
     return data;
   },
 
-  // Kullanıcı girişi
+  
   signIn: async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -76,7 +76,7 @@ export const supabaseAuth = {
     return data.user;
   },
 
-  // Oturum bilgisini alma
+  
   getSession: async () => {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
