@@ -1,21 +1,30 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User, AuthState, AuthContextProps } from '../types';
+import { User, AuthState } from '../types';
+import { supabase } from '../services/supabaseService';
 
 // Create the default auth state
 const defaultAuthState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  loading: false,
   error: null,
 };
 
+// Define the AuthContext type
+interface AuthContextType {
+  authState: AuthState;
+  signIn: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
 // Create the context with default values
-const AuthContext = createContext<AuthContextProps>({
+const AuthContext = createContext<AuthContextType>({
   authState: defaultAuthState,
-  login: async () => {},
+  signIn: async () => {},
   register: async () => {},
-  logout: () => {},
+  logout: async () => {},
 });
 
 // Hook to use the auth context
@@ -25,130 +34,157 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>(defaultAuthState);
 
-  // Check for existing token/user on load
+  // Check for existing session on load
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // This is just a placeholder - team should implement proper auth check
-        const userJson = await AsyncStorage.getItem('user');
-        const token = await AsyncStorage.getItem('token');
-        
-        if (userJson && token) {
-          const user = JSON.parse(userJson) as User;
+        setAuthState(prev => ({ ...prev, loading: true }));
+
+        // Get current session from Supabase
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (session) {
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.email?.split('@')[0] || 'User',
+            created_at: session.user.created_at || new Date().toISOString()
+          };
+
           setAuthState({
             user,
             isAuthenticated: true,
-            isLoading: false,
+            loading: false,
             error: null,
           });
         } else {
           setAuthState({
             ...defaultAuthState,
-            isLoading: false,
+            loading: false,
           });
         }
       } catch (error) {
         console.error('Error loading auth state:', error);
         setAuthState({
           ...defaultAuthState,
-          isLoading: false,
-          error: 'Failed to load authentication state',
+          loading: false,
+          error: error instanceof Error ? error.message : 'Failed to load authentication state',
         });
       }
     };
 
     loadUser();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.email?.split('@')[0] || 'User',
+            created_at: session.user.created_at || new Date().toISOString()
+          };
+
+          setAuthState({
+            user,
+            isAuthenticated: true,
+            loading: false,
+            error: null,
+          });
+        } else if (event === 'SIGNED_OUT') {
+          setAuthState({
+            ...defaultAuthState,
+            loading: false,
+          });
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      // This is just a placeholder - team should implement proper login
-      console.log('Login placeholder - to be implemented by team');
-      
-      // Simulate successful login
-      const mockUser: User = {
-        id: '1',
+      setAuthState(prev => ({ ...prev, loading: true, error: null }));
+
+      // Login with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: 'Test User',
-        createdAt: new Date().toISOString(),
-      };
-      
-      // Store user and token
-      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
-      await AsyncStorage.setItem('token', 'mock-token');
-      
-      setAuthState({
-        user: mockUser,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
+        password,
       });
+
+      if (error) throw error;
+
+      // User data will be set by the auth state change listener
     } catch (error) {
       console.error('Login error:', error);
       setAuthState(prev => ({
         ...prev,
-        isLoading: false,
-        error: 'Login failed. Please check your credentials.',
+        loading: false,
+        error: error instanceof Error ? error.message : 'Login failed. Please check your credentials.',
       }));
+      throw error;
     }
   };
 
   // Register function
   const register = async (email: string, password: string, name: string) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      // This is just a placeholder - team should implement proper registration
-      console.log('Register placeholder - to be implemented by team');
-      
-      // Simulate successful registration
-      const mockUser: User = {
-        id: '1',
+      setAuthState(prev => ({ ...prev, loading: true, error: null }));
+
+      // Register with Supabase
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name,
-        createdAt: new Date().toISOString(),
-      };
-      
-      // Store user and token
-      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
-      await AsyncStorage.setItem('token', 'mock-token');
-      
-      setAuthState({
-        user: mockUser,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
       });
+
+      if (error) throw error;
+
+      // User data will be set by the auth state change listener
     } catch (error) {
       console.error('Registration error:', error);
       setAuthState(prev => ({
         ...prev,
-        isLoading: false,
-        error: 'Registration failed. Please try again.',
+        loading: false,
+        error: error instanceof Error ? error.message : 'Registration failed. Please try again.',
       }));
+      throw error;
     }
   };
 
   // Logout function
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('token');
-      
-      setAuthState({
-        ...defaultAuthState,
-        isLoading: false,
-      });
+      setAuthState(prev => ({ ...prev, loading: true }));
+
+      const { error } = await supabase.auth.signOut();
+
+      if (error) throw error;
+
+      // Auth state will be updated by the listener
     } catch (error) {
       console.error('Logout error:', error);
+      setAuthState({
+        ...defaultAuthState,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Logout failed',
+      });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ authState, login, register, logout }}>
+    <AuthContext.Provider value={{ authState, signIn, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

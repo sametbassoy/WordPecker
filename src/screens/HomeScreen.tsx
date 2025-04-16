@@ -1,14 +1,11 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Text, Platform, Dimensions } from 'react-native';
-import { Button, Card, Title, Paragraph } from 'react-native-paper';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Text, Platform, Dimensions, TouchableOpacity, Image } from 'react-native';
+import { Button, Card, Title, Paragraph, Avatar, IconButton, Badge, Divider, FAB } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { commonStyles } from '../styles/theme';
-
-type RootStackParamList = {
-  Home: undefined;
-  FeaturePlaceholder: { featureId: number; featureName: string; description: string };
-};
+import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -143,14 +140,14 @@ const features = [
   },
   {
     id: 11,
-    name: 'Yenilikçi Özellik 1',
-    description: 'Mobil özellikleri kullanan ve dil öğrenmeyi geliştiren ilk yenilikçi özelliğinizi tasarlayın.',
+    name: 'Yapay Zeka Tercüman',
+    description: 'Yapay zeka destekli İngilizce-Türkçe tercüman ile hızlı çeviriler yapın ve kelime listenize ekleyin.',
     expectedFunctionality: [
-      'Temel uygulamada olmayan benzersiz değer önerisi',
-      'Mobil özelliklerin kullanımı',
-      'Mevcut özelliklerle entegrasyon',
-      'Kullanıcı dostu deneyim',
-      'Performans değerlendirmesi'
+      'Metinlerin hızlı çevirisi',
+      'Çeviri geçmişi',
+      'Kelime listelerine kaydetme',
+      'Kopyalama ve paylaşma',
+      'Kullanıcı dostu arayüz'
     ]
   },
   {
@@ -167,85 +164,231 @@ const features = [
   }
 ];
 
+// Ana özellikler
+const mainFeatures = [
+  {
+    id: 1,
+    name: 'Kelime Listeleri',
+    description: 'Tüm kelime listelerinizi görüntüleyin ve yönetin',
+    icon: 'format-list-bulleted',
+    color: '#4CAF50',
+    route: 'Lists'
+  },
+  {
+    id: 2,
+    name: 'Liste Oluştur',
+    description: 'Yeni kelime listesi oluşturun',
+    icon: 'playlist-plus',
+    color: '#2196F3',
+    route: 'CreateList'
+  },
+  {
+    id: 3,
+    name: 'Kelime Ekle',
+    description: 'Mevcut listelere yeni kelimeler ekleyin',
+    icon: 'plus-circle',
+    color: '#9C27B0',
+    route: 'Lists'
+  },
+  {
+    id: 4,
+    name: 'Öğrenme Modu',
+    description: 'Kelimelerinizi interaktif şekilde öğrenin',
+    icon: 'school',
+    color: '#FF9800',
+    route: 'Lists'
+  },
+  {
+    id: 5,
+    name: 'Test Modu',
+    description: 'Bilginizi test edin ve ilerleyişinizi takip edin',
+    icon: 'clipboard-check',
+    color: '#F44336',
+    route: 'Lists'
+  },
+  {
+    id: 6,
+    name: 'Arama',
+    description: 'Kelime ve listelerde arama yapın',
+    icon: 'magnify',
+    color: '#00BCD4',
+    route: 'Search'
+  },
+  {
+    id: 7,
+    name: 'Yapay Zeka Tercüman',
+    description: 'İngilizce metinleri Türkçeye çevirin',
+    icon: 'translate',
+    color: '#FF9800',
+    route: 'Translator'
+  },
+];
+
+// Kullanıcı istatistikleri
+const userStats = {
+  totalWords: 248,
+  learnedWords: 156,
+  streakDays: 7,
+  todayLearned: 12,
+  totalLists: 8,
+};
+
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { authState, logout } = useAuth();
 
-  const navigateToFeature = (feature: typeof features[0]) => {
-    navigation.navigate('FeaturePlaceholder', {
-      featureId: feature.id,
-      featureName: feature.name,
-      description: feature.description
-    });
+  useEffect(() => {
+    // Kullanıcı giriş yapmamışsa, Login ekranına yönlendir
+    if (!authState.isAuthenticated) {
+      navigation.navigate('Login');
+    }
+  }, [authState.isAuthenticated, navigation]);
+
+  const navigateToFeature = (route: string, params?: any) => {
+    navigation.navigate(route as any, params);
   };
 
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.instructions}>
-          Bu proje 12 özellik için yer tutucu ekranlar içermektedir.
-          Göreviniz temel özellikleri uygulamak ve 2 yenilikçi özellik geliştirmektir.
-          Özellik açıklaması ve gereksinimlerini görmek için her bir düğmeye tıklayın.
-        </Text>
-        
-        <View style={styles.grid}>
-          {features.map((feature) => (
-            <Card key={feature.id} style={styles.card}>
-              <Card.Content>
-                <Title style={styles.cardTitle}>{feature.name}</Title>
-                <Paragraph style={styles.cardDescription} numberOfLines={2}>
-                  {feature.description}
-                </Paragraph>
-              </Card.Content>
-              <Card.Actions>
-                <Button 
-                  mode="contained" 
-                  onPress={() => navigateToFeature(feature)}
-                  style={styles.button}
-                >
-                  İncele
-                </Button>
-              </Card.Actions>
-            </Card>
+  // Kullanıcı giriş yapmamışsa, boş bir ekran göster (Login ekranına yönlendirilecek)
+  if (!authState.isAuthenticated) {
+    return <View style={styles.container} />;
+  }
+
+  // Ana ekran içeriği
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollViewContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Üst bilgi alanı */}
+      <LinearGradient
+        colors={['#1E293B', '#0F172A']}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.welcomeText}>Merhaba, {authState.user?.name || 'Kullanıcı'}</Text>
+            <Text style={styles.dateText}>{new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.logoutButton}>
+            <Avatar.Icon size={40} icon="cog" color="#FFF" style={{ backgroundColor: 'transparent' }} />
+          </TouchableOpacity>
+        </View>
+
+        {/* İstatistik kartları */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{userStats.totalWords}</Text>
+            <Text style={styles.statLabel}>Toplam Kelime</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{userStats.learnedWords}</Text>
+            <Text style={styles.statLabel}>Öğrenilen</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{userStats.streakDays}</Text>
+            <Text style={styles.statLabel}>Gün Serisi</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{userStats.todayLearned}</Text>
+            <Text style={styles.statLabel}>Bugün</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Ana özellikler grid */}
+      <View style={styles.featuresContainer}>
+        <Text style={styles.sectionTitle}>Özellikler</Text>
+        <View style={styles.featuresGrid}>
+          {mainFeatures.map((feature) => (
+            <TouchableOpacity
+              key={feature.id}
+              style={[styles.featureCard, { backgroundColor: feature.color + '20' }]}
+              onPress={() => navigateToFeature(feature.route)}
+            >
+              <IconButton
+                icon={feature.icon}
+                size={32}
+                iconColor={feature.color}
+                style={styles.featureIcon}
+              />
+              <Text style={styles.featureName}>{feature.name}</Text>
+              <Text style={styles.featureDescription} numberOfLines={2}>{feature.description}</Text>
+            </TouchableOpacity>
           ))}
         </View>
       </View>
-    );
-  }
 
-  return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.scrollViewContent}
-      showsVerticalScrollIndicator={true}
-    >
-      {/* Mobil için mevcut içerik */}
-      <Text style={styles.instructions}>
-        Bu proje 12 özellik için yer tutucu ekranlar içermektedir.
-        Göreviniz temel özellikleri uygulamak ve 2 yenilikçi özellik geliştirmektir.
-        Özellik açıklaması ve gereksinimlerini görmek için her bir düğmeye tıklayın.
-      </Text>
-      
-      <View style={styles.grid}>
-        {features.map((feature) => (
-          <Card key={feature.id} style={styles.card}>
+      {/* Son çalışılan listeler */}
+      <View style={styles.recentContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Son Çalışılan Listeler</Text>
+          <Button
+            mode="text"
+            onPress={() => navigateToFeature('Lists')}
+            labelStyle={styles.viewAllButton}
+          >
+            Tümünü Gör
+          </Button>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.recentListsScroll}
+        >
+          {/* Örnek liste kartları */}
+          <Card style={styles.recentListCard}>
             <Card.Content>
-              <Title style={styles.cardTitle}>{feature.name}</Title>
-              <Paragraph style={styles.cardDescription} numberOfLines={2}>
-                {feature.description}
-              </Paragraph>
+              <Title style={styles.recentListTitle}>İngilizce Temel Kelimeler</Title>
+              <Paragraph style={styles.recentListInfo}>120 kelime • %75 tamamlandı</Paragraph>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '75%', backgroundColor: '#4CAF50' }]} />
+              </View>
             </Card.Content>
-            <Card.Actions>
-              <Button 
-                mode="contained" 
-                onPress={() => navigateToFeature(feature)}
-                style={styles.button}
-              >
-                İncele
-              </Button>
+            <Card.Actions style={styles.recentListActions}>
+              <Button mode="text" onPress={() => navigateToFeature('Learn', { listId: '1' })} labelStyle={{ color: '#4CAF50' }}>Öğren</Button>
+              <Button mode="text" onPress={() => navigateToFeature('Quiz', { listId: '1' })} labelStyle={{ color: '#F44336' }}>Test Et</Button>
             </Card.Actions>
           </Card>
-        ))}
+
+          <Card style={styles.recentListCard}>
+            <Card.Content>
+              <Title style={styles.recentListTitle}>Almanca Günlük Konuşma</Title>
+              <Paragraph style={styles.recentListInfo}>85 kelime • %40 tamamlandı</Paragraph>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '40%', backgroundColor: '#FF9800' }]} />
+              </View>
+            </Card.Content>
+            <Card.Actions style={styles.recentListActions}>
+              <Button mode="text" onPress={() => navigateToFeature('Learn', { listId: '2' })} labelStyle={{ color: '#4CAF50' }}>Öğren</Button>
+              <Button mode="text" onPress={() => navigateToFeature('Quiz', { listId: '2' })} labelStyle={{ color: '#F44336' }}>Test Et</Button>
+            </Card.Actions>
+          </Card>
+
+          <Card style={styles.recentListCard}>
+            <Card.Content>
+              <Title style={styles.recentListTitle}>İspanyolca Seyahat</Title>
+              <Paragraph style={styles.recentListInfo}>65 kelime • %25 tamamlandı</Paragraph>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '25%', backgroundColor: '#F44336' }]} />
+              </View>
+            </Card.Content>
+            <Card.Actions style={styles.recentListActions}>
+              <Button mode="text" onPress={() => navigateToFeature('Learn', { listId: '3' })} labelStyle={{ color: '#4CAF50' }}>Öğren</Button>
+              <Button mode="text" onPress={() => navigateToFeature('Quiz', { listId: '3' })} labelStyle={{ color: '#F44336' }}>Test Et</Button>
+            </Card.Actions>
+          </Card>
+        </ScrollView>
       </View>
+
+      {/* Yeni liste oluşturma butonu */}
+      <FAB
+        icon="plus"
+        style={styles.fab}
+        onPress={() => navigateToFeature('CreateList')}
+        color="#FFFFFF"
+      />
     </ScrollView>
   );
 };
@@ -255,12 +398,12 @@ const styles = StyleSheet.create({
     web: {
       height: Dimensions.get('window').height,
       overflow: 'scroll',
-      padding: 16,
+      padding: 0,
       backgroundColor: '#0F172A',
     },
     default: {
       flex: 1,
-      padding: 16,
+      padding: 0,
       backgroundColor: '#0F172A',
     },
   }),
@@ -271,6 +414,158 @@ const styles = StyleSheet.create({
       flexGrow: 1,
     }),
   },
+  // Header styles
+  header: {
+    padding: 20,
+    paddingTop: 40,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  welcomeText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  logoutButton: {
+    padding: 5,
+  },
+  // Stats styles
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 15,
+  },
+  statCard: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  // Features grid styles
+  featuresContainer: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  featureCard: {
+    width: '48%',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  featureIcon: {
+    marginBottom: 8,
+  },
+  featureName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  featureDescription: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  // Recent lists styles
+  recentContainer: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewAllButton: {
+    color: '#4CAF50',
+    fontSize: 14,
+  },
+  recentListsScroll: {
+    paddingRight: 20,
+    paddingBottom: 10,
+  },
+  recentListCard: {
+    width: 280,
+    marginRight: 16,
+    backgroundColor: '#1E293B',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  recentListTitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  recentListInfo: {
+    color: '#94A3B8',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  recentListActions: {
+    justifyContent: 'space-between',
+  },
+  // FAB style
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#4CAF50',
+  },
+  // Legacy styles
   instructions: {
     fontSize: 16,
     marginBottom: 20,
@@ -303,11 +598,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cardDescription: {
-    color: '#94A3B8', // slate.400
+    color: '#94A3B8',
     fontSize: 14,
   },
   button: {
-    backgroundColor: '#4CAF50', // Green
+    backgroundColor: '#4CAF50',
   }
 });
 

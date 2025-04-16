@@ -1,10 +1,10 @@
 // Navigation Types
 export type RootStackParamList = {
   Home: undefined;
-  FeaturePlaceholder: { 
-    featureId: number; 
-    featureName: string; 
-    description: string 
+  FeaturePlaceholder: {
+    featureId: number;
+    featureName: string;
+    description: string
   };
   // These would be implemented by the team
   Login: undefined;
@@ -18,7 +18,8 @@ export type RootStackParamList = {
   Progress: undefined;
   Search: undefined;
   Settings: undefined;
-  // Innovative features would be added here
+  // Innovative features
+  Translator: undefined;
 };
 
 // Data Types
